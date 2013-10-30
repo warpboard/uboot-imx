@@ -63,20 +63,28 @@ struct fsl_esdhc {
 	uint	fevt;
 	uint    admaerrstat;
 	uint    admasysaddr;
-	char    reserved2[4];
 	uint    dllctrl;
 	uint    dllstat;
 	uint    clktunectrlstatus;
-	char    reserved3[84];
 	uint    vendorspec;
 	uint    mmcboot;
 	uint    vendorspec2;
-	char	reserved4[48];
+	uint	admaes;
+	uint	adsaddr;
+	char	reserved2[160];
 	uint	hostver;
-#ifndef ARCH_MXC
-	char	reserved3[780];
+	char	reserved3[4];
+	uint	dmaerraddr;
+	char	reserved4[4];
+	uint	dmaerrattr;
+	char	reserved5[4];
+	uint	hostcapblt2;
+	char	reserved6[8];
+	uint	tcr;
+	char	reserved7[28];
+	uint	sddirctl;
+	char	reserved8[712];
 	uint	scr;
-#endif
 };
 
 /* Return the XFERTYP flags for a given command and data packet */
