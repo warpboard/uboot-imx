@@ -1146,12 +1146,13 @@ int boot_ramdisk_high(struct lmb *lmb, ulong rd_data, ulong rd_len,
 #endif
 			puts("OK\n");
 		}
+
+		printf("   ramdisk load start = 0x%08lx, ramdisk load end = 0x%08lx\n",
+			   *initrd_start, *initrd_end);
 	} else {
 		*initrd_start = 0;
 		*initrd_end = 0;
 	}
-	debug("   ramdisk load start = 0x%08lx, ramdisk load end = 0x%08lx\n",
-			*initrd_start, *initrd_end);
 
 	return 0;
 
