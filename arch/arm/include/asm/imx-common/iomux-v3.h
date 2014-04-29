@@ -85,6 +85,12 @@ typedef u64 iomux_v3_cfg_t;
 	((iomux_v3_cfg_t)(sel_input)     << MUX_SEL_INPUT_SHIFT))
 
 #define NO_PAD_CTRL		(1 << 17)
+
+#if defined CONFIG_MX6SL
+#define PAD_CTL_LVE		(1 << 1)
+#define PAD_CTL_LVE_BIT		(1 << 22)
+#endif
+
 #define GPIO_PIN_MASK		0x1f
 #define GPIO_PORT_SHIFT		5
 #define GPIO_PORT_MASK		(0x7 << GPIO_PORT_SHIFT)
