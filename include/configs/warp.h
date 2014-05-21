@@ -25,6 +25,8 @@
 #define CONFIG_SYS_PL310_BASE		0x00A02000
 #define CONFIG_SYS_CACHELINE_SIZE	32
 
+#undef CONFIG_LDO_BYPASS_CHECK
+
 /* FIXME: Get a machine typo number as 4307 is imx6slevk one */
 #define MACH_TYPE_WARP		4307
 #define CONFIG_MACH_TYPE		MACH_TYPE_WARP
@@ -65,6 +67,7 @@
 #include <config_cmd_default.h>
 #undef CONFIG_CMD_NET
 #undef CONFIG_CMD_NFS
+#undef CONFIG_CMD_IMLS
 
 #define CONFIG_BOOTDELAY		3
 
