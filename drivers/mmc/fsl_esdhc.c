@@ -63,28 +63,29 @@ struct fsl_esdhc {
 	uint    fevt;		/* Force event register */
 	uint    admaerrstat;
 	uint    admasysaddr;
+	char    reserved2[4];	/* reserved */
 	uint    dllctrl;
 	uint    dllstat;
 	uint    clktunectrlstatus;
 	uint    admaes;		/* ADMA error status register */
 	uint    adsaddr;	/* ADMA system address register */
-	char    reserved2[100];	/* reserved */
+	char    reserved3[76];	/* reserved */
 	uint    vendorspec;	/* Vendor Specific register */
 	uint    mmcboot;
 	uint    vendorspec2;
-	char    reserved3[59];	/* reserved */
+	char    reserved4[59];	/* reserved */
 	uint    hostver;	/* Host controller version register */
-	char    reserved4[4];	/* reserved */
-	uint    dmaerraddr;	/* DMA error address register */
 	char    reserved5[4];	/* reserved */
-	uint    dmaerrattr;	/* DMA error attribute register */
+	uint    dmaerraddr;	/* DMA error address register */
 	char    reserved6[4];	/* reserved */
+	uint    dmaerrattr;	/* DMA error attribute register */
+	char    reserved7[4];	/* reserved */
 	uint    hostcapblt2;	/* Host controller capabilities register 2 */
-	char    reserved7[8];	/* reserved */
+	char    reserved8[8];	/* reserved */
 	uint    tcr;		/* Tuning control register */
-	char    reserved8[28];	/* reserved */
+	char    reserved9[28];	/* reserved */
 	uint    sddirctl;	/* SD direction control register */
-	char    reserved9[712];	/* reserved */
+	char    reserved10[712];	/* reserved */
 	uint    scr;		/* eSDHC control register */
 };
 
@@ -524,7 +525,7 @@ static int esdhc_init(struct mmc *mmc)
 	esdhc_write32(&regs->clktunectrlstatus, 0x0);
 
 	/* Put VEND_SPEC to default value */
-	esdhc_write32(&regs->vendorspec, VENDORSPEC_INIT);
+//	esdhc_write32(&regs->vendorspec, VENDORSPEC_INIT);
 #endif
 
 #ifndef ARCH_MXC
@@ -545,8 +546,9 @@ static int esdhc_init(struct mmc *mmc)
 
 	/* Set timout to the maximum value */
 	esdhc_clrsetbits32(&regs->sysctl, SYSCTL_TIMEOUT_MASK, 14 << 16);
-
+	printf("RUNNING ESDHC INIT\n");
 #ifdef CONFIG_SYS_FSL_ESDHC_FORCE_VSELECT
+	printf("Setting reg 0x%08X to 0x%08X \n", &regs->vendorspec, ESDHC_VENDORSPEC_VSELECT);
 	esdhc_setbits32(&regs->vendorspec, ESDHC_VENDORSPEC_VSELECT);
 #endif
 
