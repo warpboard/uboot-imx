@@ -59,12 +59,19 @@
 #define CONFIG_ANDROID_RECOVERY_PARTITION_MMC 2
 #define CONFIG_ANDROID_CACHE_PARTITION_MMC 6
 
+#undef is_boot_from_usb
 #undef CONFIG_EXTRA_ENV_SETTINGS
 #undef CONFIG_BOOTCOMMAND
+
+#define CONFIG_BOOTCOMMAND \
+	"run nfsargs; bootz"
 
 #define CONFIG_EXTRA_ENV_SETTINGS					\
 	"splashpos=m,m\0"	  \
 	"fdt_high=0xffffffff\0"	  \
 	"initrd_high=0xffffffff\0" \
+	"ip_config=192.168.207.2:::255.255.255.0::usb0:off::\0" \
+	"nfsroot=192.168.207.1:/home/nfs/nfsroot\0" \
+	"nfsargs=setenv bootargs console=ttymxc0,115200 init=/init rw ip=${ip_config} nfsrootdebug nfsroot=${nfsroot} androidboot.console=ttymxc0 csi androidboot.hardware=freescale\0"
 
 #endif
