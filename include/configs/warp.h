@@ -5,6 +5,8 @@
  *
  * Copyright (C) 2014 Kynetics, LLC
  *
+ * Copyright (C) 2014 Revolution Robotics, Inc.
+ *
  * Configuration settings for the WaRP Board
  *
  * SPDX-License-Identifier:	GPL-2.0+
@@ -62,12 +64,27 @@
 #define CONFIG_CONS_INDEX		1
 #define CONFIG_BAUDRATE			115200
 
+// I2C Configs
+#define CONFIG_I2C_MXC		1
+#define CONFIG_HARD_I2C		1
+#define CONFIG_SYS_I2C_MXC	1
+#define CONFIG_SYS_I2C		1
+#define CONFIG_SYS_I2C_BASE 	I2C1_BASE_ADDR
+#define CONFIG_SYS_I2C_SPEED 	40000/* default speed (in HZ) */
+#define CONFIG_SYS_I2C_SLAVE 	0
+
+#define CONFIG_CMD_I2C
+
 
 /* Command definition */
 #include <config_cmd_default.h>
 #undef CONFIG_CMD_NET
 #undef CONFIG_CMD_NFS
 #undef CONFIG_CMD_IMLS
+
+#ifdef CONFIG_CMD_FUSE
+#define CONFIG_MXC_OCOTP
+#endif
 
 #define CONFIG_BOOTDELAY		3
 

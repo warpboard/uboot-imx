@@ -11,6 +11,10 @@
  *
  * Backport to 2013.04: Diego Rondini
  *
+ * Copyright (C) 2014 Revolution Robotics, Inc.
+ *
+ * Author: Jacob Postman
+ *
  * SPDX-License-Identifier:    GPL-2.0+
  */
 
@@ -27,6 +31,11 @@
 #include <common.h>
 #include <fsl_esdhc.h>
 #include <mmc.h>
+
+// I2C Dependencies
+#include <asm/imx-common/mxc_i2c.h>
+#include <i2c.h>
+
 #ifdef CONFIG_FASTBOOT
 #include <fastboot.h>
 #ifdef CONFIG_ANDROID_RECOVERY
@@ -45,6 +54,13 @@ DECLARE_GLOBAL_DATA_PTR;
 	PAD_CTL_PUS_22K_UP  | PAD_CTL_SPEED_LOW |		\
 	PAD_CTL_DSE_80ohm   | PAD_CTL_SRE_FAST  | PAD_CTL_HYS | \
 	PAD_CTL_LVE)
+
+#define I2C_PAD_CTRL   (PAD_CTL_PUS_100K_UP |                  \
+	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm | PAD_CTL_HYS |   \
+	PAD_CTL_ODE | PAD_CTL_SRE_FAST | PAD_CTL_LVE)
+
+#define LCD_PAD_CTRL   ( PAD_CTL_SPEED_HIGH | PAD_CTL_DSE_80ohm |      \
+	PAD_CTL_SRE_FAST | PAD_CTL_LVE)
 
 int dram_init(void)
 {
@@ -76,6 +92,20 @@ static void setup_iomux_uart(void)
 {
 	imx_iomux_v3_setup_multiple_pads(uart1_pads, ARRAY_SIZE(uart1_pads));
 }
+
+struct i2c_pads_info i2c_pad_info0 = {
+       .scl = {
+               .i2c_mode =  MX6_PAD_I2C1_SCL__I2C1_SCL | MUX_PAD_CTRL(I2C_PAD_CTRL),
+               .gpio_mode = MX6_PAD_I2C1_SCL__GPIO_3_12 | MUX_PAD_CTRL(I2C_PAD_CTRL),
+               .gp = IMX_GPIO_NR(3, 12)
+       },
+       .sda = {
+               .i2c_mode = MX6_PAD_I2C1_SDA__I2C1_SDA | MUX_PAD_CTRL(I2C_PAD_CTRL),
+               .gpio_mode = MX6_PAD_I2C1_SDA__GPIO_3_13 | MUX_PAD_CTRL(I2C_PAD_CTRL),
+               .gp = IMX_GPIO_NR(3, 13)
+       }
+};
+
 
 #ifdef CONFIG_FSL_ESDHC
 
@@ -128,6 +158,7 @@ void board_late_mmc_env_init(void)
 int board_early_init_f(void)
 {
 	setup_iomux_uart();
+	setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info0);
 
 	return 0;
 }
