@@ -31,6 +31,7 @@
 #include <common.h>
 #include <fsl_esdhc.h>
 #include <mmc.h>
+#include <max77696.h>
 
 // I2C Dependencies
 #include <asm/imx-common/mxc_i2c.h>
@@ -167,6 +168,9 @@ int board_init(void)
 {
 	/* address of boot parameters */
 	gd->bd->bi_boot_params = PHYS_SDRAM + 0x100;
+
+	// Set manual reset button hold time to 2 seconds (min value)
+	i2c_reg_write(MAX77696_PMIC_ADDR, GLBLCNFG1, 0x22);
 
 	return 0;
 }
