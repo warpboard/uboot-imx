@@ -175,9 +175,23 @@ int board_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_CMD_BMODE
+static const struct boot_mode board_boot_modes[] = {
+	// 8 bit bus width
+	{"sd2",	 MAKE_CFGVAL(0x40, 0x2A, 0x00, 0x00)},
+	{"emmc8bitddr", MAKE_CFGVAL(0x60, 0xCA, 0x00, 0x00)},
+	{"emmc8bit", MAKE_CFGVAL(0x60, 0x4A, 0x00, 0x00)},
+	{NULL,	 0},
+};
+#endif
+
 int board_late_init(void)
 {
 	int ret = 0;
+
+#ifdef CONFIG_CMD_BMODE
+	add_board_boot_modes(board_boot_modes);
+#endif
 
 #ifdef CONFIG_ENV_IS_IN_MMC
 	board_late_mmc_env_init();

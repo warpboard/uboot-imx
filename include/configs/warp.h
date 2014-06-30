@@ -75,6 +75,7 @@
 
 #define CONFIG_CMD_I2C
 
+#define CONFIG_CMD_BMODE
 
 /* Command definition */
 #include <config_cmd_default.h>
