@@ -160,35 +160,14 @@ u32 get_board_rev(void)
 
 void board_fastboot_setup(void)
 {
-	switch (get_boot_device()) {
 #if defined(CONFIG_FASTBOOT_STORAGE_MMC)
-	case SD1_BOOT:
-	case MMC1_BOOT:
-		if (!getenv("fastboot_dev"))
-			setenv("fastboot_dev", "mmc0");
-		if (!getenv("bootcmd"))
-			setenv("bootcmd", "booti mmc0");
-		break;
-	case SD2_BOOT:
-	case MMC2_BOOT:
-		if (!getenv("fastboot_dev"))
-			setenv("fastboot_dev", "mmc1");
-		if (!getenv("bootcmd"))
-			setenv("bootcmd", "booti mmc1");
-		break;
-	case SD3_BOOT:
-	case MMC3_BOOT:
-		if (!getenv("fastboot_dev"))
-			setenv("fastboot_dev", "mmc2");
-		if (!getenv("bootcmd"))
-			setenv("bootcmd", "booti mmc2");
-		break;
+	if (!getenv("fastboot_dev"))
+		setenv("fastboot_dev", "mmc0");
+	if (!getenv("bootcmd"))
+		setenv("bootcmd", "booti mmc0");
+#else
+	printf("unsupported boot devices\n");
 #endif /*CONFIG_FASTBOOT_STORAGE_MMC*/
-	default:
-		printf("unsupported boot devices\n");
-		break;
-	}
-
 }
 
 #ifdef CONFIG_ANDROID_RECOVERY
