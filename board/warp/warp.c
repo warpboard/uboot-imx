@@ -36,6 +36,7 @@
 // I2C Dependencies
 #include <asm/imx-common/mxc_i2c.h>
 #include <i2c.h>
+#include "warp_bbi2c.h"
 
 #ifdef CONFIG_FASTBOOT
 #include <fastboot.h>
@@ -62,6 +63,18 @@ DECLARE_GLOBAL_DATA_PTR;
 
 #define LCD_PAD_CTRL   ( PAD_CTL_SPEED_HIGH | PAD_CTL_DSE_80ohm |      \
 	PAD_CTL_SRE_FAST | PAD_CTL_LVE)
+
+#define BBI2C_PAD_CTRL   (PAD_CTL_PUS_22K_UP |  PAD_CTL_PUE | PAD_CTL_PKE |  \
+	PAD_CTL_SPEED_MED | PAD_CTL_DSE_80ohm | PAD_CTL_HYS |   \
+	PAD_CTL_ODE | PAD_CTL_SRE_FAST | PAD_CTL_LVE)
+
+#define BBI2C_ADDR0	IMX_GPIO_NR(4, 14) //ECSPI2_MISO
+#define BBI2C_ADDR1	IMX_GPIO_NR(4, 15) //ECSPI2_SS0
+
+#define FXOS8700_I2C_ADDR 0x1E
+
+#define BBI2C_WRITE 	0x00
+#define BBI2C_READ  	0x01
 
 int dram_init(void)
 {
@@ -156,12 +169,79 @@ void board_late_mmc_env_init(void)
 }
 #endif
 
+static iomux_v3_cfg_t const bbi2c_pads[] = {
+	MX6_PAD_ECSPI2_SCLK__GPIO_4_12 | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
+	MX6_PAD_ECSPI2_MOSI__GPIO_4_13 | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
+	MX6_PAD_ECSPI2_MISO__GPIO_4_14 | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
+	MX6_PAD_ECSPI2_SS0__GPIO_4_15 | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
+	MX6_PAD_AUD_TXFS__GPIO_1_4  | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
+	MX6_PAD_KEY_ROW2__GPIO_3_29  | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
+};
+
+static iomux_v3_cfg_t const bbi2c_uncfg_addr[] = {
+	MX6_PAD_ECSPI2_MISO__GPIO_4_14,
+	MX6_PAD_ECSPI2_SS0__GPIO_4_15,
+};
+
 int board_early_init_f(void)
 {
+	// Configure FXOS8700 addresss pads
+	imx_iomux_v3_setup_multiple_pads(bbi2c_pads, ARRAY_SIZE(bbi2c_pads));
+	gpio_direction_output(BBI2C_ADDR0, 0);
+	gpio_direction_output(BBI2C_ADDR1, 0);
+
 	setup_iomux_uart();
 	setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info0);
 
 	return 0;
+}
+
+/******************************************************
+ * On the development rev of WaRP FXOS8700
+ * comes up in I2C mode by default. This workaround
+ * sets the mode configuration pads as necessary and
+ * bit-bangs the FXOS8700 I2C interface to initiate
+ * a soft reset. This results in the FXOS8700 coming
+ * up in the intended SPI mode which is then available
+ * to interface with from the Linux/Android kernel.
+ ******************************************************/
+void fxos8700_init(void){
+
+	unsigned char ret = 0;
+
+	unsigned char tryAddr = 0;
+
+	BBI2C_Init();
+
+	// SEND RESET SEQUENCE ****************************
+	// Send I2C Start Sequence
+	imx_iomux_v3_setup_multiple_pads(bbi2c_uncfg_addr, ARRAY_SIZE(bbi2c_uncfg_addr));
+	gpio_direction_input(BBI2C_ADDR0);
+	gpio_direction_input(BBI2C_ADDR1);
+
+	BBI2C_Start();
+
+	ret = BBI2C_TransmitByte((FXOS8700_I2C_ADDR << 1) | (BBI2C_WRITE));
+	if(ret){
+		printf("Failed sending device address to FXOS\n");
+		goto stop_seq;
+	}
+	ret = BBI2C_TransmitByte(0x2B);
+	if(ret){
+		printf("Failed sending register address to FXOS\n");
+		goto stop_seq;
+	}
+
+	ret = BBI2C_TransmitByte(0x40);
+	if(ret){
+		// Doesn't actually fail - device just resets immediately.
+		printf("Failed sending data to FXOS\n");
+	}
+	stop_seq:
+		BBI2C_Stop();
+
+	// END RESET SEQUENCE ***********************
+
 }
 
 int board_init(void)
@@ -171,6 +251,9 @@ int board_init(void)
 
 	// Set manual reset button hold time to 2 seconds (min value)
 	i2c_reg_write(MAX77696_PMIC_ADDR, GLBLCNFG1, 0x22);
+
+	// Initialize the FXOS8700 into SPI mode using I2C Bitbang
+	fxos8700_init();
 
 	return 0;
 }
