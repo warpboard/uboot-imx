@@ -82,6 +82,7 @@
 #undef CONFIG_CMD_NFS
 #undef CONFIG_CMD_IMLS
 
+#define CONFIG_CMD_FUSE
 #ifdef CONFIG_CMD_FUSE
 #define CONFIG_MXC_OCOTP
 #endif
