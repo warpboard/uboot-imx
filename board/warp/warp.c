@@ -13,17 +13,19 @@
  *
  * Copyright (C) 2014 Revolution Robotics, Inc.
  *
- * Author: Jacob Postman
+ * Author: Jacob Postman <jacob@revolution-robotics.com>
  *
  * SPDX-License-Identifier:    GPL-2.0+
  */
 
 #include <asm/arch/clock.h>
+#include <asm/arch/crm_regs.h>
 #include <asm/arch/iomux.h>
 #include <asm/arch/imx-regs.h>
 #include <asm/arch/mx6-pins.h>
 #include <asm/arch/sys_proto.h>
 #include <asm/gpio.h>
+
 #include <asm/imx-common/iomux-v3.h>
 #include <asm/imx-common/boot_mode.h>
 #include <asm/io.h>
@@ -33,10 +35,17 @@
 #include <mmc.h>
 #include <max77696.h>
 
+#include "warp_common.h"
+
 // I2C Dependencies
 #include <asm/imx-common/mxc_i2c.h>
 #include <i2c.h>
 #include "warp_bbi2c.h"
+
+#include "warp_mx6sl_pwm.h"
+#include "ssd2805.h"
+#include "lh154.h"
+#include "warp_lcd.h"
 
 #ifdef CONFIG_FASTBOOT
 #include <fastboot.h>
@@ -183,6 +192,157 @@ static iomux_v3_cfg_t const bbi2c_uncfg_addr[] = {
 	MX6_PAD_ECSPI2_SS0__GPIO_4_15,
 };
 
+static void __maybe_unused config_pwm3(void)
+{
+	int reg;
+	reg = PWMCR_CLKSRC(2);
+	writel(reg, PWM3_PWMCR);
+	writel(0x1, PWM3_PWMSAR);
+	writel(0x0, PWM3_PWMPR);
+}
+
+static void __maybe_unused enable_pwm3(void){
+	int reg;
+	reg = readl(PWM3_PWMCR);
+	reg |= PWMCR_ENABLE;
+	writel(reg, PWM3_PWMCR);
+}
+
+static void __maybe_unused config_pwm4(void)
+{
+	int reg;
+	reg = PWMCR_CLKSRC(2);
+	writel(reg, PWM4_PWMCR);
+	writel(0x1, PWM4_PWMSAR);
+	writel(0x0, PWM4_PWMPR);
+}
+
+static void __maybe_unused enable_pwm4(void){
+	int reg;
+	reg = readl(PWM4_PWMCR);
+	reg |= PWMCR_ENABLE;
+	writel(reg, PWM4_PWMCR);
+}
+
+static void config_MAX77696_GPIO(void){
+	unsigned int reg;
+	// Set PMIC GPIO to Solomon:
+	// GPIO0 - MIPI_PS0
+	// GPIO1 - MIPI_PS1
+	// GPIO2 - MIPI_PS2
+	// GPIO3 - MIPI_IF_SEL
+	// Configure GPIO as push-pull output
+	// DIRx=0
+	// PPDRVx=1
+	// AMEx=0
+	// DOx = 1 or 0
+	//Set PS[1:0] (PMIC_GPIO[1:0]) to 11 per Solomon recommendation,
+	// 	Might want/need 01 for 8Bit, 3 Wire SPI mode instead
+	//	00: 24 Bit 3 Wire SPI interface
+	//	01: 8 Bit 3 Wire SPI interface
+	//	10: 8 Bit 4 Wire SPI interface
+	//	11: No SPI interface
+	// Set PS[3:2] to 01 for 16bit 8080 MCU interface mode (PS3 tied to GND)
+	i2c_reg_write(MAX77696_PMIC_ADDR, AME_GPIO, 0x00);
+	reg = (1 << PPRDRVx_SHIFT); // Configure as push-pull
+	reg |= (1 << DOx_SHIFT); // Configure as output = 1
+	reg &= ~(1 << DIRx_SHIFT); // Configure as general purpose output
+
+	i2c_reg_write(MAX77696_PMIC_ADDR, CNFG_GPIO0, reg);
+	i2c_reg_write(MAX77696_PMIC_ADDR, CNFG_GPIO1, reg);
+
+#if (LCDIF_BUS_WIDTH == 8)
+	reg &= ~(1 << DOx_SHIFT); // Configure as output = 0
+#elif (LCDIF_BUS_WIDTH == 16)
+	reg |= (1 << DOx_SHIFT); // Configure as output = 1
+#endif
+	i2c_reg_write(MAX77696_PMIC_ADDR, CNFG_GPIO2, reg);
+
+	//Set MIPI_IF_SEL (GPIO3) to 1 for MCU 8080 Scheme 1 Mode
+	reg |= (1 << DOx_SHIFT); // Configure as output = 1
+	i2c_reg_write(MAX77696_PMIC_ADDR, CNFG_GPIO3, reg);
+}
+
+static void enable_MAX77696_V1P8_LDO(void)
+{
+	unsigned int reg;
+	// Set to normal mode (0xC0) and 1.8V output (0x28)
+	reg = (0x28 | 0xC0);
+	// Enable V1P8_LDO - OUTLDO4 enable
+	i2c_reg_write(MAX77696_PMIC_ADDR, L04_CNFG1, reg);
+}
+
+static void set_MAX77696_V3P0(void)
+{
+	unsigned int reg;
+	reg = (0xC0);
+	// Enable V1P8_LDO - OUTLDO4 enable
+	i2c_reg_write(MAX77696_PMIC_ADDR, VOUT6, reg);
+}
+
+static void setup_display(void)
+{
+	// Configure iMX6SL pads
+	set_lcd_pads();
+
+	// Configure iMX6SL registers for 8080 MPU mode (may be done in SSD driver)
+	// SSD2805C power on sequence
+
+	// PMIC: Configure PMIC GPIO to set SSD2805C mode
+	config_MAX77696_GPIO();
+	udelay(1000);
+
+	// IMX6: Set MIPI_RESET# high
+	// Set high during pad config
+
+	// IMX6: Enable TX_CLK PWM output 5-50MHz
+	//config_pwm3();
+	//enable_pwm3();
+	config_pwm4();
+	enable_pwm4();
+
+	// Initialize iMX6 LCD interface
+	lcdif_init();
+
+	// 4. PMIC: Enable V1P8_LDO
+	enable_MAX77696_V1P8_LDO();
+	// Delay to ensure MIPI_RSTn is high for >=250ms before reset.
+	udelay(200000);
+
+	// 5. IMX6: Set MIPI_RESET# low for >100us then set high
+	gpio_direction_output(PINID_LCD_RSTN, 0);  	// LCD_RSTn
+	gpio_direction_output(PINID_MIPI_RSTN, 0); 	// MIPI_RSTn
+	udelay(100);
+	gpio_direction_output(PINID_LCD_RSTN, 1);  	// LCD_RSTn
+	gpio_direction_output(PINID_MIPI_RSTN, 1); 	// MIPI_RSTn
+	udelay(100);
+
+	// LCD power on sequence
+	// 1. LCD - Enable 1.8V (always on, ignore step)
+	// 2. Wait 10us
+	// 3. Set reset to HIGH
+	// 4. Wait 1ms
+	// 5. LCD - Enable 2.9V (always on, ignore step)
+	// 	Future rev uses V2P9_GATED rail instead of V2P9
+	// 6. Wait 5ms
+	// 7. LCD - Turn on High-speed clock
+	// 8. Wait 10ms
+	// 9. Exit sleep mode (send Register 0x11)
+	// 10. Wait 120ms
+	// 11. Wait 40ms (wait 2 frames)
+	// 12. Send configuration register data
+	// 13. Send image
+	// 14. Send display on command
+	lh154_init_panel();
+
+	// Set LED Backlight drive strength
+	i2c_reg_write(MAX77696_PMIC_ADDR, LED1CURRENT_1, 0xf0);
+	i2c_reg_write(MAX77696_PMIC_ADDR, LED1CURRENT_2, 0x00);
+
+	// Enable LED Backlight
+	i2c_reg_write(MAX77696_PMIC_ADDR, LEDBST_CNTRL_1, 0x80);
+}
+
 int board_early_init_f(void)
 {
 	// Configure FXOS8700 addresss pads
@@ -254,6 +414,8 @@ int board_init(void)
 
 	// Initialize the FXOS8700 into SPI mode using I2C Bitbang
 	fxos8700_init();
+
+	setup_display();
 
 	return 0;
 }
