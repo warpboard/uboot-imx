@@ -25,14 +25,36 @@
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include "warp_bbi2c.h"
+#include "warp_common.h"
 
-#define BB_I2C_SETTLE_US 250
+// Example read register sequence
+	/*	BBI2C_Start();
+	ret = BBI2C_TransmitByte((FXOS8700_I2C_ADDR << 1) | (BBI2C_WRITE));
+	if(ret){
+		printf("Failed sending device address write to FXOS\n");
+		goto stop_seq;
+	}
+	ret = BBI2C_TransmitByte(0x0D);
+	if(ret){
+		printf("Failed sending register address to FXOS\n");
+		goto stop_seq;
+	}
 
-#define BBI2C_CLK	IMX_GPIO_NR(4, 12) //ECSPI2_SCK
-#define BBI2C_DAT	IMX_GPIO_NR(4, 13) //ECSPI2_MOSI
+	BBI2C_Start(); // Perform repeated start for read
 
-#define BBI2C_ADDR0	IMX_GPIO_NR(4, 14) //ECSPI2_MISO
-#define BBI2C_ADDR1	IMX_GPIO_NR(4, 15) //ECSPI2_SS0
+	ret = BBI2C_TransmitByte((FXOS8700_I2C_ADDR << 1) | (BBI2C_READ));
+	if(ret){
+		printf("Failed sending device address read to FXOS\n");
+		goto stop_seq;
+	}else{
+		ret = BBI2C_Read(0x1);
+		BBI2C_Stop();
+		printf("Read from FXOS: 0x%02X\n", ret);
+	}
+	//return;
+	//stop_seq:
+	//	BBI2C_Stop();
+	// End example read register sequence */
 
 void BBI2C_CLK_HI(void)
 {

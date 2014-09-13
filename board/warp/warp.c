@@ -56,60 +56,12 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-#define UART_PAD_CTRL  (PAD_CTL_PKE | PAD_CTL_PUE |		\
-	PAD_CTL_PUS_100K_UP | PAD_CTL_SPEED_MED |		\
-	PAD_CTL_DSE_40ohm   | PAD_CTL_SRE_FAST  | PAD_CTL_HYS | \
-	PAD_CTL_LVE )
-
-#define USDHC_PAD_CTRL (PAD_CTL_PKE | PAD_CTL_PUE |		\
-	PAD_CTL_PUS_22K_UP  | PAD_CTL_SPEED_LOW |		\
-	PAD_CTL_DSE_80ohm   | PAD_CTL_SRE_FAST  | PAD_CTL_HYS | \
-	PAD_CTL_LVE)
-
-#define I2C_PAD_CTRL   (PAD_CTL_PUS_100K_UP |                  \
-	PAD_CTL_SPEED_MED | PAD_CTL_DSE_40ohm | PAD_CTL_HYS |   \
-	PAD_CTL_ODE | PAD_CTL_SRE_FAST | PAD_CTL_LVE)
-
-#define LCD_PAD_CTRL   ( PAD_CTL_SPEED_HIGH | PAD_CTL_DSE_80ohm |      \
-	PAD_CTL_SRE_FAST | PAD_CTL_LVE)
-
-#define BBI2C_PAD_CTRL   (PAD_CTL_PUS_22K_UP |  PAD_CTL_PUE | PAD_CTL_PKE |  \
-	PAD_CTL_SPEED_MED | PAD_CTL_DSE_80ohm | PAD_CTL_HYS |   \
-	PAD_CTL_ODE | PAD_CTL_SRE_FAST | PAD_CTL_LVE)
-
-#define BBI2C_ADDR0	IMX_GPIO_NR(4, 14) //ECSPI2_MISO
-#define BBI2C_ADDR1	IMX_GPIO_NR(4, 15) //ECSPI2_SS0
-
-#define FXOS8700_I2C_ADDR 0x1E
-
-#define BBI2C_WRITE 	0x00
-#define BBI2C_READ  	0x01
-
 int dram_init(void)
 {
 	gd->ram_size = get_ram_size((void *)PHYS_SDRAM, PHYS_SDRAM_SIZE);
 
 	return 0;
 }
-
-static iomux_v3_cfg_t const uart1_pads[] = {
-	MX6_PAD_UART1_TXD__UART1_TXD | MUX_PAD_CTRL(UART_PAD_CTRL),
-	MX6_PAD_UART1_RXD__UART1_RXD | MUX_PAD_CTRL(UART_PAD_CTRL),
-};
-
-static iomux_v3_cfg_t const usdhc2_pads[] = {
-	MX6_PAD_SD2_CLK__USDHC2_CLK | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6_PAD_SD2_CMD__USDHC2_CMD | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6_PAD_SD2_RST__USDHC2_RST | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6_PAD_SD2_DAT0__USDHC2_DAT0 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6_PAD_SD2_DAT1__USDHC2_DAT1 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6_PAD_SD2_DAT2__USDHC2_DAT2 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6_PAD_SD2_DAT3__USDHC2_DAT3 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6_PAD_SD2_DAT4__USDHC2_DAT4 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6_PAD_SD2_DAT5__USDHC2_DAT5 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6_PAD_SD2_DAT6__USDHC2_DAT6 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-	MX6_PAD_SD2_DAT7__USDHC2_DAT7 | MUX_PAD_CTRL(USDHC_PAD_CTRL),
-};
 
 static void setup_iomux_uart(void)
 {
@@ -128,7 +80,6 @@ struct i2c_pads_info i2c_pad_info0 = {
                .gp = IMX_GPIO_NR(3, 13)
        }
 };
-
 
 #ifdef CONFIG_FSL_ESDHC
 
@@ -177,20 +128,6 @@ void board_late_mmc_env_init(void)
 	run_command(cmd, 0);
 }
 #endif
-
-static iomux_v3_cfg_t const bbi2c_pads[] = {
-	MX6_PAD_ECSPI2_SCLK__GPIO_4_12 | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
-	MX6_PAD_ECSPI2_MOSI__GPIO_4_13 | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
-	MX6_PAD_ECSPI2_MISO__GPIO_4_14 | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
-	MX6_PAD_ECSPI2_SS0__GPIO_4_15 | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
-	MX6_PAD_AUD_TXFS__GPIO_1_4  | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
-	MX6_PAD_KEY_ROW2__GPIO_3_29  | MUX_PAD_CTRL(BBI2C_PAD_CTRL),
-};
-
-static iomux_v3_cfg_t const bbi2c_uncfg_addr[] = {
-	MX6_PAD_ECSPI2_MISO__GPIO_4_14,
-	MX6_PAD_ECSPI2_SS0__GPIO_4_15,
-};
 
 static void __maybe_unused config_pwm3(void)
 {
@@ -296,10 +233,11 @@ static void setup_display(void)
 	// Set high during pad config
 
 	// IMX6: Enable TX_CLK PWM output 5-50MHz
-	//config_pwm3();
-	//enable_pwm3();
+//	config_pwm3();
+//	enable_pwm3();
 	config_pwm4();
 	enable_pwm4();
+	udelay(2000);
 
 	// Initialize iMX6 LCD interface
 	lcdif_init();
@@ -369,8 +307,6 @@ void fxos8700_init(void){
 
 	unsigned char ret = 0;
 
-	unsigned char tryAddr = 0;
-
 	BBI2C_Init();
 
 	// SEND RESET SEQUENCE ****************************
@@ -415,15 +351,12 @@ int board_init(void)
 	// Initialize the FXOS8700 into SPI mode using I2C Bitbang
 	fxos8700_init();
 
-	setup_display();
-
 	return 0;
 }
 
 #ifdef CONFIG_CMD_BMODE
 static const struct boot_mode board_boot_modes[] = {
 	// 8 bit bus width
-	{"sd2",	 MAKE_CFGVAL(0x40, 0x2A, 0x00, 0x00)},
 	{"emmc8bitddr", MAKE_CFGVAL(0x60, 0xCA, 0x00, 0x00)},
 	{"emmc8bit", MAKE_CFGVAL(0x60, 0x4A, 0x00, 0x00)},
 	{NULL,	 0},
@@ -432,8 +365,6 @@ static const struct boot_mode board_boot_modes[] = {
 
 int board_late_init(void)
 {
-	int ret = 0;
-
 #ifdef CONFIG_CMD_BMODE
 	add_board_boot_modes(board_boot_modes);
 #endif
@@ -441,6 +372,8 @@ int board_late_init(void)
 #ifdef CONFIG_ENV_IS_IN_MMC
 	board_late_mmc_env_init();
 #endif
+
+	setup_display();
 
 	return 0;
 }
@@ -518,26 +451,14 @@ int checkboard(void)
 }
 
 #ifdef CONFIG_IMX_UDC
-iomux_v3_cfg_t const otg_udc_pads[] = {
-	(MX6_PAD_EPDC_PWRCOM__ANATOP_USBOTG1_ID | MUX_PAD_CTRL(NO_PAD_CTRL)),
-};
 void udc_pins_setting(void)
 {
 	imx_iomux_v3_setup_multiple_pads(otg_udc_pads,
 			ARRAY_SIZE(otg_udc_pads));
 }
-#endif /*CONFIG_IMX_UDC*/
+#endif // CONFIG_IMX_UDC
 
 #ifdef CONFIG_USB_EHCI_MX6
-iomux_v3_cfg_t const usb_otg1_pads[] = {
-	MX6_PAD_KEY_COL4__USB_USBOTG1_PWR | MUX_PAD_CTRL(NO_PAD_CTRL),
-	MX6_PAD_EPDC_PWRCOM__ANATOP_USBOTG1_ID | MUX_PAD_CTRL(NO_PAD_CTRL)
-};
-
-iomux_v3_cfg_t const usb_otg2_pads[] = {
-	MX6_PAD_KEY_COL5__USB_USBOTG2_PWR | MUX_PAD_CTRL(NO_PAD_CTRL),
-};
-
 int board_ehci_hcd_init(int port)
 {
 	switch (port) {
@@ -555,4 +476,4 @@ int board_ehci_hcd_init(int port)
 	}
 	return 0;
 }
-#endif
+#endif // CONFIG_USB_EHCI_MX6
