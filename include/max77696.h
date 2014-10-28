@@ -50,6 +50,11 @@
 #define	LDO_INT2M	0x5A
 #define	LDO_CNFG3	0x5B
 
+#define SW1_CNTRL	0x5C
+#define SW2_CNTRL	0x5D
+#define SW3_CNTRL	0x5E
+#define SW4_CNTRL	0x5F
+
 #define LEDBST_CNTRL_1	0x6C
 #define LED1CURRENT_1 	0x6D
 #define LED1CURRENT_2 	0x6E

@@ -222,6 +222,13 @@ static void enable_MAX77696_V1P8_LDO(void)
 	i2c_reg_write(MAX77696_PMIC_ADDR, L04_CNFG1, reg);
 }
 
+static void enable_MAX77696_V2P9_LOADSWITCH(void){
+	unsigned int reg;
+	// Enable Load Switch 3 with other settings kept at default values
+	reg = (0x0D);
+	i2c_reg_write(MAX77696_PMIC_ADDR, SW3_CNTRL, reg);
+}
+
 static void set_MAX77696_V3P0(void)
 {
 	unsigned int reg;
@@ -255,8 +262,9 @@ static void setup_display(void)
 	// Initialize iMX6 LCD interface
 	lcdif_init();
 
-	// 4. PMIC: Enable V1P8_LDO
+	// 4. PMIC: Enable V1P8_LDO and V2P9 load switch
 	enable_MAX77696_V1P8_LDO();
+	enable_MAX77696_V2P9_LOADSWITCH();
 
 	// Delay to ensure MIPI_RSTn is high for >=250ms before reset.
 	udelay(200000);
