@@ -81,6 +81,19 @@ struct i2c_pads_info i2c_pad_info0 = {
        }
 };
 
+struct i2c_pads_info i2c_pad_info1 = {
+       .scl = {
+               .i2c_mode =  MX6_PAD_I2C2_SCL__I2C2_SCL | MUX_PAD_CTRL(WARP_I2C_PAD_CTRL_3V),
+               .gpio_mode = MX6_PAD_I2C2_SCL__GPIO_3_14 | MUX_PAD_CTRL(WARP_I2C_PAD_CTRL_3V),
+               .gp = IMX_GPIO_NR(3, 14)
+       },
+       .sda = {
+               .i2c_mode = MX6_PAD_I2C2_SDA__I2C2_SDA | MUX_PAD_CTRL(WARP_I2C_PAD_CTRL_3V),
+               .gpio_mode = MX6_PAD_I2C2_SDA__GPIO_3_15 | MUX_PAD_CTRL(WARP_I2C_PAD_CTRL_3V),
+               .gp = IMX_GPIO_NR(3, 15)
+       }
+};
+
 #ifdef CONFIG_FSL_ESDHC
 
 #define USDHC2_CD_GPIO	IMX_GPIO_NR(5, 0)
@@ -244,6 +257,7 @@ static void setup_display(void)
 
 	// 4. PMIC: Enable V1P8_LDO
 	enable_MAX77696_V1P8_LDO();
+
 	// Delay to ensure MIPI_RSTn is high for >=250ms before reset.
 	udelay(200000);
 
@@ -290,6 +304,7 @@ int board_early_init_f(void)
 
 	setup_iomux_uart();
 	setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info0);
+	setup_i2c(1, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info1);
 
 	return 0;
 }
