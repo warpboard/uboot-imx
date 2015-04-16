@@ -84,8 +84,6 @@ static inline void mxc_lcdif_setdiv_system(int div) {
 				 REGS_LCDIF_BASE + HW_LCDIF_TIMING);
 }
 
-static char display_buffer[240*240*3];
-
 #ifdef DEBUG_SSD2805
 static void __maybe_unused ssd2805_dump_registers(void)
 {
@@ -136,7 +134,7 @@ static void ssd2805_dump_registers(void) { }
 
 // Adapted from mxs_init_lcdif() in lcdif.c for mxs in ImWatch kernel.
 void lcdif_init(void){
-	//int reg = 0;
+
 	__raw_writel(BM_LCDIF_CTRL_CLKGATE, REGS_LCDIF_BASE + HW_LCDIF_CTRL_CLR);
 
 	/* Reset controller */
@@ -161,6 +159,7 @@ static void setup_system_panel(u16 h_active, u16 v_active, u8 bus_width)
 	u32 val;
 	u16 bw;
 	u16 h_active_hw;
+
 	switch (bus_width) {
 	case 8:
 		bw = BV_LCDIF_CTRL_LCD_DATABUS_WIDTH__8_BIT;
@@ -668,18 +667,16 @@ int lh154_init_panel(void)
 	mipi_dcs_command(LH154_CMD_DISPON);
 
 	// BEGIN BARE METAL SPLASH SCREEN UPDATE
-	// Copy splash image to simple frame buffer array
-	memcpy(display_buffer, splash_image.pixel_data, sizeof(display_buffer));
+	mxc_lcdif_setdiv_system(LCDIF_FAST_FREQDIV);
 
 	// Blank out simple frame buffer array
 	//memset(display_buffer, 0, sizeof(display_buffer));
 
-	__raw_writel(&display_buffer, REGS_LCDIF_BASE + HW_LCDIF_CUR_BUF);
-	__raw_writel(&display_buffer, REGS_LCDIF_BASE + HW_LCDIF_NEXT_BUF);
+	__raw_writel(&splash_image.pixel_data, REGS_LCDIF_BASE + HW_LCDIF_CUR_BUF);
 
 	// performing: lh154_update_panel
-	ssd2805_write_reg(SSD2805_REG_PSCR1, SSD2805_PSCR1_TDCL(sizeof(display_buffer) & 0xffff));
-	ssd2805_write_reg(SSD2805_REG_PSCR2, SSD2805_PSCR2_TDCH(sizeof(display_buffer) >> 16));
+	ssd2805_write_reg(SSD2805_REG_PSCR1, SSD2805_PSCR1_TDCL(sizeof(splash_image.pixel_data) & 0xffff));
+	ssd2805_write_reg(SSD2805_REG_PSCR2, SSD2805_PSCR2_TDCH(sizeof(splash_image.pixel_data) >> 16));
 
 	ssd2805_command(LH154_CMD_RAMWR);
 
@@ -691,12 +688,9 @@ int lh154_init_panel(void)
 				 BF_LCDIF_TRANSFER_COUNT_V_COUNT(240), REGS_LCDIF_BASE + HW_LCDIF_TRANSFER_COUNT);
 #endif
 
-	__raw_writel(BM_LCDIF_CTRL_LCDIF_MASTER,
-		REGS_LCDIF_BASE + HW_LCDIF_CTRL_SET);
 	gpio_direction_output(PINID_LCD_RS, 1); // set data/command select to data via gpio
 
-	__raw_writel(&display_buffer, REGS_LCDIF_BASE + HW_LCDIF_CUR_BUF);
-	__raw_writel(&display_buffer, REGS_LCDIF_BASE + HW_LCDIF_NEXT_BUF);
+	__raw_writel(&splash_image.pixel_data, REGS_LCDIF_BASE + HW_LCDIF_CUR_BUF);
 
 	__raw_writel(BM_LCDIF_CTRL_LCDIF_MASTER, REGS_LCDIF_BASE + HW_LCDIF_CTRL_SET);
 	__raw_writel(BM_LCDIF_CTRL_RUN, REGS_LCDIF_BASE + HW_LCDIF_CTRL_SET);
