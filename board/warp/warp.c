@@ -56,6 +56,58 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+struct warp_cfg warp_cfg_info = {
+	.rev = -1,
+	.pin_lcd_rdx = PINID_LCD_RD_REV1P12,
+	.pin_lcd_dcx = PINID_LCD_RS_REV1P12,
+	.pin_mipi_rstn = PINID_MIPI_RSTN_REV1P12,
+};
+
+int get_warp_rev(void){
+
+	int version = 0;
+
+	// Set revision pads as GPIO with weak pull-downs
+	imx_iomux_v3_setup_multiple_pads(brd_rev_pads, ARRAY_SIZE(brd_rev_pads));
+
+	// SD1_DAT4 (REV Bit 2)
+	// SD1_DAT5 (REV Bit 1)
+	// SD1_DAT6 (REV Bit 0)
+	gpio_direction_input(BRD_REV_GPIO_0);
+	gpio_direction_input(BRD_REV_GPIO_1);
+	gpio_direction_input(BRD_REV_GPIO_2);
+
+	// Drive SD1_DAT7 high
+	gpio_direction_output(BRD_REV_GPIO_CHK,1);
+
+	// Read version value from GPIO
+	version = (gpio_get_value(BRD_REV_GPIO_0) << 0);
+	version |= (gpio_get_value(BRD_REV_GPIO_1) << 1);
+	version |= (gpio_get_value(BRD_REV_GPIO_2) << 2);
+
+	return version;
+}
+
+static void setup_warp_rev_pads(void){
+	switch(warp_cfg_info.rev){
+	case BRD_REV_1P10:
+		puts("1.10\n");
+		warp_cfg_info.pin_lcd_rdx = PINID_LCD_RD_REV1P10;
+		warp_cfg_info.pin_lcd_dcx = PINID_LCD_RS_REV1P10;
+		warp_cfg_info.pin_mipi_rstn = PINID_MIPI_RSTN_REV1P10;
+		break;
+	case BRD_REV_1P12:
+		puts("1.12\n");
+		warp_cfg_info.pin_lcd_rdx = PINID_LCD_RD_REV1P12;
+		warp_cfg_info.pin_lcd_dcx = PINID_LCD_RS_REV1P12;
+		warp_cfg_info.pin_mipi_rstn = PINID_MIPI_RSTN_REV1P12;
+		break;
+	default:
+		printf("unknown revision code (%d)\n",
+			warp_cfg_info.rev);
+	}
+}
+
 int dram_init(void)
 {
 	gd->ram_size = get_ram_size((void *)PHYS_SDRAM, PHYS_SDRAM_SIZE);
@@ -271,10 +323,10 @@ static void setup_display(void)
 
 	// 5. IMX6: Set MIPI_RESET# low for >100us then set high
 	gpio_direction_output(PINID_LCD_RSTN, 0);  	// LCD_RSTn
-	gpio_direction_output(PINID_MIPI_RSTN, 0); 	// MIPI_RSTn
+	gpio_direction_output(warp_cfg_info.pin_mipi_rstn, 0); 	// MIPI_RSTn
 	udelay(100);
 	gpio_direction_output(PINID_LCD_RSTN, 1);  	// LCD_RSTn
-	gpio_direction_output(PINID_MIPI_RSTN, 1); 	// MIPI_RSTn
+	gpio_direction_output(warp_cfg_info.pin_mipi_rstn, 1); 	// MIPI_RSTn
 	udelay(100);
 
 	// LCD power on sequence
@@ -305,10 +357,15 @@ static void setup_display(void)
 
 int board_early_init_f(void)
 {
+	// Get board version from GPIO
+	warp_cfg_info.rev = get_warp_rev();
+
 	// Configure FXOS8700 addresss pads
-	imx_iomux_v3_setup_multiple_pads(bbi2c_pads, ARRAY_SIZE(bbi2c_pads));
-	gpio_direction_output(BBI2C_ADDR0, 0);
-	gpio_direction_output(BBI2C_ADDR1, 0);
+	if(warp_cfg_info.rev == BRD_REV_1P10){
+		imx_iomux_v3_setup_multiple_pads(bbi2c_pads, ARRAY_SIZE(bbi2c_pads));
+		gpio_direction_output(BBI2C_ADDR0, 0);
+		gpio_direction_output(BBI2C_ADDR1, 0);
+	}
 
 	setup_iomux_uart();
 	setup_i2c(0, CONFIG_SYS_I2C_SPEED, 0x7f, &i2c_pad_info0);
@@ -330,37 +387,48 @@ void fxos8700_init(void){
 
 	unsigned char ret = 0;
 
-	BBI2C_Init();
+	if(warp_cfg_info.rev == BRD_REV_1P10){
 
-	// SEND RESET SEQUENCE ****************************
-	// Send I2C Start Sequence
-	imx_iomux_v3_setup_multiple_pads(bbi2c_uncfg_addr, ARRAY_SIZE(bbi2c_uncfg_addr));
-	gpio_direction_input(BBI2C_ADDR0);
-	gpio_direction_input(BBI2C_ADDR1);
+		BBI2C_Init();
 
-	BBI2C_Start();
+		imx_iomux_v3_setup_multiple_pads(bbi2c_uncfg_addr, ARRAY_SIZE(bbi2c_uncfg_addr));
+		gpio_direction_input(BBI2C_ADDR0);
+		gpio_direction_input(BBI2C_ADDR1);
 
-	ret = BBI2C_TransmitByte((FXOS8700_I2C_ADDR << 1) | (BBI2C_WRITE));
-	if(ret){
-		printf("Failed sending device address to FXOS\n");
-		goto stop_seq;
-	}
-	ret = BBI2C_TransmitByte(0x2B);
-	if(ret){
-		printf("Failed sending register address to FXOS\n");
-		goto stop_seq;
-	}
+		// SEND RESET SEQUENCE ****************************
+		// Send I2C Start Sequence
+		BBI2C_Start();
 
-	ret = BBI2C_TransmitByte(0x40);
-	if(ret){
+		ret = BBI2C_TransmitByte((FXOS8700_I2C_ADDR << 1) | (BBI2C_WRITE));
+		if(ret){
+			printf("Failed sending device address to FXOS\n");
+			goto stop_seq;
+		}
+		ret = BBI2C_TransmitByte(0x2B);
+		if(ret){
+			printf("Failed sending register address to FXOS\n");
+			goto stop_seq;
+		}
+
+		ret = BBI2C_TransmitByte(0x40);
+		if(ret){
 		// Doesn't actually fail - device just resets immediately.
-		printf("Failed sending data to FXOS\n");
-	}
-	stop_seq:
+		//	printf("Failed sending data to FXOS\n");
+		}
+		stop_seq:
 		BBI2C_Stop();
 
-	// END RESET SEQUENCE ***********************
-
+		// END RESET SEQUENCE ***********************
+	} else{
+		imx_iomux_v3_setup_multiple_pads(bbi2c_uncfg_addr, ARRAY_SIZE(bbi2c_uncfg_addr));
+		gpio_direction_input(BBI2C_ADDR0);
+		gpio_direction_input(BBI2C_ADDR1);
+		imx_iomux_v3_setup_multiple_pads(fxos_rstn_pads, ARRAY_SIZE(fxos_rstn_pads));
+		gpio_direction_output(FXOS8700_RSTN, 1);
+		udelay(100);
+		gpio_direction_output(FXOS8700_RSTN, 0);
+		udelay(100);
+	}
 }
 
 int board_init(void)
@@ -371,7 +439,7 @@ int board_init(void)
 	// Set manual reset button hold time to 2 seconds (min value)
 	i2c_reg_write(MAX77696_PMIC_ADDR, GLBLCNFG1, 0x22);
 
-	// Initialize the FXOS8700 into SPI mode using I2C Bitbang
+	// Initialize the FXOS8700 into SPI mode
 	fxos8700_init();
 
 	return 0;
@@ -395,8 +463,8 @@ int board_late_init(void)
 #ifdef CONFIG_ENV_IS_IN_MMC
 	board_late_mmc_env_init();
 #endif
-
-	setup_display();
+	if(warp_cfg_info.rev >= 0)
+		setup_display();
 
 	return 0;
 }
@@ -468,7 +536,16 @@ void board_recovery_setup(void)
 
 int checkboard(void)
 {
-	puts("Board: WaRP Board\n");
+	puts("    _    _      ____________\n");
+	puts("   | |  | |     | ___ | ___ \\ \n");
+	puts("   | |  | | __ _| |_/ | |_/ /\n");
+	puts("   | |/\\| |/ _` |    /|  __/\n");
+	puts("   \\  /\\  | (_| | |\\ \\| |\n");
+	puts("    \\/  \\/ \\__,_\\_| \\_\\_|\n");
+	puts("\n");
+
+	puts("Board: WaRP Board Revision ");
+	setup_warp_rev_pads();
 
 	return 0;
 }

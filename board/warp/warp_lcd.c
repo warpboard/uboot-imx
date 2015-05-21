@@ -232,7 +232,7 @@ static void lcdif_write(void *ptr, unsigned len, int is_data)
 
 	__raw_writel(BM_LCDIF_CTRL_LCDIF_MASTER, REGS_LCDIF_BASE + HW_LCDIF_CTRL_CLR);
 	udelay(10);
-	gpio_direction_output(PINID_LCD_RS, is_data?1:0); 	// LCD_DCX / LCD_RS
+	gpio_direction_output(warp_cfg_info.pin_lcd_dcx, is_data?1:0); 	// LCD_DCX / LCD_RS
 	while (len > 0)
 	{
 		unsigned burst, count;
@@ -270,14 +270,28 @@ static void lcdif_write(void *ptr, unsigned len, int is_data)
 
 void set_lcd_pads(void){
 	// Configure iMX6SL pads
-	imx_iomux_v3_setup_multiple_pads(mcu8080display_pads,ARRAY_SIZE(mcu8080display_pads));
+	imx_iomux_v3_setup_multiple_pads(mcu8080display_pads_common,
+			ARRAY_SIZE(mcu8080display_pads_common));
+
+	switch(warp_cfg_info.rev){
+	case BRD_REV_1P10:
+		imx_iomux_v3_setup_multiple_pads(mcu8080display_pads_rev1p10,
+				ARRAY_SIZE(mcu8080display_pads_rev1p10));
+		break;
+	case BRD_REV_1P12:
+	default:
+		imx_iomux_v3_setup_multiple_pads(mcu8080display_pads_rev1p12,
+				ARRAY_SIZE(mcu8080display_pads_rev1p12));
+		break;
+	}
+
 	gpio_direction_input(PINID_MIPI_TE); 		// MIPI_TE
 	gpio_direction_output(PINID_LCD_RSTN, 1);  	// LCD_RSTn
 	gpio_direction_input(PINID_LCD_INTN); 		// LCD_INTn
 	gpio_direction_input(PINID_MIPI_BSYNC);  	// MIPI_B_SYNC
-	gpio_direction_output(PINID_MIPI_RSTN, 1); 	// MIPI_RSTn
-	gpio_direction_output(PINID_LCD_RD, 1); 	// LCD_RDX
-	gpio_direction_output(PINID_LCD_RS, 1); 	// LCD_DCX(ssd)/LCD_RS(mx6)
+	gpio_direction_output(warp_cfg_info.pin_mipi_rstn, 1); 	// MIPI_RSTn
+	gpio_direction_output(warp_cfg_info.pin_lcd_rdx, 1); 	// LCD_RDX
+	gpio_direction_output(warp_cfg_info.pin_lcd_dcx, 1); 	// LCD_DCX(ssd)/LCD_RS(mx6)
 }
 
 static void set_lcd_dat_gpio_out(void){
@@ -300,9 +314,9 @@ static void set_lcd_dat_gpio_out(void){
 	gpio_direction_output(PINID_LCD_DAT15,1); 	// LCD_DAT15
 #endif
 	gpio_direction_output(PINID_LCD_CS,1); 		// LCD_CS
-	gpio_direction_output(PINID_LCD_RS,1); 		// LCD_RS
+	gpio_direction_output(warp_cfg_info.pin_lcd_dcx,1); // LCD_RS
 	gpio_direction_output(PINID_LCD_WR,1); 		// LCD_WR
-	gpio_direction_output(PINID_LCD_RD,1); 		// LCD_RD
+	gpio_direction_output(warp_cfg_info.pin_lcd_rdx,1); // LCD_RD
 }
 
 static void set_lcd_dat_gpio_in(void){
@@ -384,9 +398,9 @@ static void set_lcd_pads_gpio(void){
 	gpio_direction_output(PINID_LCD_RSTN, 1);  	// LCD_RSTn
 	gpio_direction_input(PINID_LCD_INTN); 		// LCD_INTn
 	gpio_direction_input(PINID_MIPI_BSYNC);  	// MIPI_B_SYNC
-	gpio_direction_output(PINID_MIPI_RSTN	, 1); 	// MIPI_RSTn
-	gpio_direction_output(PINID_LCD_RD, 1); 	// LCD_RDX
-	gpio_direction_output(PINID_LCD_RS, 1); 	// LCD_DCX
+	gpio_direction_output(warp_cfg_info.pin_mipi_rstn, 1); 	// MIPI_RSTn
+	gpio_direction_output(warp_cfg_info.pin_lcd_rdx, 1); 	// LCD_RDX
+	gpio_direction_output(warp_cfg_info.pin_lcd_dcx, 1); 	// LCD_DCX
 }
 
 static int lcdif_read(u16 reg, u16 *rbuf, int rlen)
@@ -399,7 +413,7 @@ static int lcdif_read(u16 reg, u16 *rbuf, int rlen)
 
 	// write command cycle
 	udelay(1000);
-	gpio_direction_output(PINID_LCD_RS, 0);
+	gpio_direction_output(warp_cfg_info.pin_lcd_dcx, 0);
 	udelay(1000);
 	gpio_direction_output(PINID_LCD_CS, 0);
 	udelay(1000);
@@ -425,25 +439,25 @@ static int lcdif_read(u16 reg, u16 *rbuf, int rlen)
 	set_lcd_dat_gpio_in();
 
 	// read data cycle(s)
-	gpio_direction_output(PINID_LCD_RS, 1);
+	gpio_direction_output(warp_cfg_info.pin_lcd_dcx, 1);
 	udelay(1000);
 	while (rlen > 0) {
 #if (LCDIF_BUS_WIDTH == 8)
-		gpio_direction_output(PINID_LCD_RD, 0);
+		gpio_direction_output(warp_cfg_info.pin_lcd_rdx, 0);
 		udelay(1000);
 
 		currGPIO =  __raw_readl(GPIO2_BASE_ADDR);
 		reg = ((currGPIO >> 20) & 0x000000ff); 	// LCD_DAT[11:0] come from GPIO2[31:20]
 
-		gpio_direction_output(PINID_LCD_RD, 1);
+		gpio_direction_output(warp_cfg_info.pin_lcd_rdx, 1);
 		udelay(1000);
-		gpio_direction_output(PINID_LCD_RD, 0);
+		gpio_direction_output(warp_cfg_info.pin_lcd_rdx, 0);
 		udelay(1000);
 
 		currGPIO =  __raw_readl(GPIO2_BASE_ADDR);
 		reg |= ((currGPIO >> 12) & 0x0000ff00); 	// LCD_DAT[11:0] come from GPIO2[31:20]
 #elif (LCDIF_BUS_WIDTH == 16)
-		gpio_direction_output(PINID_LCD_RD, 0);
+		gpio_direction_output(warp_cfg_info.pin_lcd_rdx, 0);
 		udelay(1000);
 		currGPIO =  __raw_readl(GPIO3_BASE_ADDR);
 		reg = ((currGPIO << 12) & 0x0000f000); 	// LCD_DAT[15:12] go to GPIO3[3:0]
@@ -451,7 +465,7 @@ static int lcdif_read(u16 reg, u16 *rbuf, int rlen)
 		currGPIO =  __raw_readl(GPIO2_BASE_ADDR);
 		reg |= ((currGPIO >> 20) & 0x00000fff); 	// LCD_DAT[11:0] come from GPIO2[31:20]
 #endif
-		gpio_direction_output(PINID_LCD_RD, 1);
+		gpio_direction_output(warp_cfg_info.pin_lcd_rdx, 1);
 		udelay(1000);
 		rlen -= 2;
 		*rbuf++ = (u16) reg;
@@ -688,7 +702,7 @@ int lh154_init_panel(void)
 				 BF_LCDIF_TRANSFER_COUNT_V_COUNT(240), REGS_LCDIF_BASE + HW_LCDIF_TRANSFER_COUNT);
 #endif
 
-	gpio_direction_output(PINID_LCD_RS, 1); // set data/command select to data via gpio
+	gpio_direction_output(warp_cfg_info.pin_lcd_dcx, 1); // set data/command select to data via gpio
 
 	__raw_writel(&splash_image.pixel_data, REGS_LCDIF_BASE + HW_LCDIF_CUR_BUF);
 
