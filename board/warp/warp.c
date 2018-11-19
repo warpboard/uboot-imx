@@ -132,6 +132,33 @@ int power_init_board(void)
 
 	printf("PMIC:  MAX77696 detected, rev=0x%x\n", reg);
 
+	// Unlock battery charger write register
+	pmic_reg_write(p, 0x15, 0x0C);
+
+	// Set battery charge voltage to 4.2V
+	pmic_reg_write(p, 0x13, 0x16);
+
+	// Set battery charge termination voltage to 4.2V
+	pmic_reg_write(p, 0x14, 0x16);
+
+	// Set battery charge current
+	pmic_reg_write(p, 0x11, 0x0a);
+
+	// Lock battery charger write register
+	pmic_reg_write(p, 0x15, 0x00);
+
+	// Set BUCK6 t0 2.9V
+	pmic_reg_write(p, 0x38, 0xb8);
+
+	// Disable BUCK 2
+	pmic_reg_write(p, 0x3A, 0x00);
+
+	// Disable BUCK 3
+	pmic_reg_write(p, 0x3B, 0x00);
+
+	// Set BUCK 1 (VDD_ARM, VDD_SOC) to 1.275V
+	pmic_reg_write(p, 0x31, 0x36);
+
 	return pmic_probe(p);
 }
 
